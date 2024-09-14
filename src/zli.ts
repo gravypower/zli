@@ -152,14 +152,19 @@ export class Zli {
                     parsedArgs[optionKey] = value === 'true';
                     i++; // Move to the next argument
                 } else if (fieldType instanceof z.ZodArray) {
-                    i++; // Move past the option name
-                    const values = [];
-                    while (i < args.length && !args[i].startsWith('-')) {
-                        values.push(args[i]);
-                        processedIndices.add(i);
+                    if (value) {
+                        // Handle comma-separated values
+                        parsedArgs[optionKey] = value.split(',');
+                    } else {
+                        const values = [];
                         i++;
+                        while (i < args.length && !args[i].startsWith('-')) {
+                            values.push(args[i]);
+                            processedIndices.add(i);
+                            i++;
+                        }
+                        parsedArgs[optionKey] = values;
                     }
-                    parsedArgs[optionKey] = values;
                 } else {
                     parsedArgs[optionKey] = this.parseValue(value!, fieldType);
                     i = result.newIndex;
@@ -185,7 +190,7 @@ export class Zli {
                         return null;
                     }
 
-                    const { optionKey, fieldType, value } = result;
+                    const { optionKey, fieldType } = result;
 
                     if (
                         fieldType instanceof ZodBoolean ||

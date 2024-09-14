@@ -327,4 +327,36 @@ describe('Zli Class', () => {
         zli.parse(['test', '--weird-option', 'value']);
         expect(handlerMock.calledWith({ 'weird-option': 'value' })).toBe(true);
     });
+
+    it('should handle comma-separated arrays in --tags=value1,value2 format', () => {
+        const handlerMock = sinon.spy();
+        const schema = z.object({
+            tags: z.array(z.string()).describe('A list of tags'),
+        });
+
+        const zli = new Zli();
+        zli.addCommand('test', schema, handlerMock);
+
+        // Parse the --tags=tag1,tag2 format
+        zli.parse(['test', '--tags=tag1,tag2']);
+
+        // Ensure the handler is called with the correct array
+        expect(handlerMock.calledWith({ tags: ['tag1', 'tag2'] })).toBe(true);
+    });
+
+    it('should handle space-separated arrays for tags', () => {
+        const handlerMock = sinon.spy();
+        const schema = z.object({
+            tags: z.array(z.string()).describe('A list of tags'),
+        });
+
+        const zli = new Zli();
+        zli.addCommand('test', schema, handlerMock);
+
+        // Parse space-separated array values
+        zli.parse(['test', '--tags', 'tag1', 'tag2']);
+
+        // Ensure the handler is called with the correct array
+        expect(handlerMock.calledWith({ tags: ['tag1', 'tag2'] })).toBe(true);
+    });
 });
