@@ -1,5 +1,6 @@
 // zli.ts
-import { z, type ZodTypeAny, ZodBoolean, ZodNumber } from "zod";
+
+import { z, type ZodTypeAny, ZodBoolean, ZodNumber } from 'zod';
 import './zod-extensions'; // Ensure extensions are loaded
 
 // CommandDefinition now uses generics for type safety
@@ -68,7 +69,10 @@ export class Zli {
 
         const parsedArgs = this.parseArgs(options, commandDefinition.schema);
         if (!parsedArgs) {
-            this.displayHelpForCommand(commandName, commandDefinition.schema);
+            // Display help if validation fails or unknown argument is encountered
+            if (this.shouldDisplayHelp) {
+                this.displayHelpForCommand(commandName, commandDefinition.schema);
+            }
             return;
         }
 
@@ -78,6 +82,8 @@ export class Zli {
             console.error(`An error occurred while executing the command: ${error.message}`);
         }
     }
+
+    private shouldDisplayHelp = false;
 
     /**
      * Parse options using the provided Zod schema.
@@ -115,6 +121,7 @@ export class Zli {
                 const optionKey = recognizedOptions.get(arg);
                 if (!optionKey) {
                     console.error(`Unknown option: ${arg}`);
+                    this.shouldDisplayHelp = true;
                     return null;
                 }
 
@@ -139,25 +146,30 @@ export class Zli {
                     parsedArgs[optionKey] = values;
                 } else {
                     if (!value) {
-                        value = args[i + 1];
-                        if (value === undefined || value.startsWith('-')) {
+                        if (i + 1 >= args.length || args[i + 1].startsWith('-')) {
                             console.error(`Option ${arg} requires a value`);
+                            this.shouldDisplayHelp = true;
                             return null;
                         }
+                        value = args[i + 1];
                         processedIndices.add(i + 1);
+                        i += 2;
+                    } else {
                         i++;
                     }
                     parsedArgs[optionKey] = this.parseValue(value, fieldType);
-                    i++;
                 }
             } else if (arg.startsWith('-') && arg.length > 2) {
                 // Handle combined short flags
                 const flags = arg.slice(1).split('');
+                processedIndices.add(i);
+                i++;
                 for (const flag of flags) {
                     const flagArg = `-${flag}`;
                     const optionKey = recognizedOptions.get(flagArg);
                     if (!optionKey) {
                         console.error(`Unknown option: ${flagArg}`);
+                        this.shouldDisplayHelp = true;
                         return null;
                     }
 
@@ -169,18 +181,17 @@ export class Zli {
                     ) {
                         parsedArgs[optionKey] = true;
                     } else {
-                        const value = args[i + 1];
-                        if (value === undefined || value.startsWith('-')) {
+                        if (i >= args.length || args[i].startsWith('-')) {
                             console.error(`Option ${flagArg} requires a value`);
+                            this.shouldDisplayHelp = true;
                             return null;
                         }
-                        parsedArgs[optionKey] = this.parseValue(value, fieldType);
-                        processedIndices.add(i + 1);
+                        const value = args[i];
+                        processedIndices.add(i);
                         i++;
+                        parsedArgs[optionKey] = this.parseValue(value, fieldType);
                     }
                 }
-                processedIndices.add(i);
-                i++;
             } else if (arg.startsWith('-')) {
                 let value: string | undefined;
                 if (arg.includes('=')) {
@@ -189,6 +200,7 @@ export class Zli {
                 const optionKey = recognizedOptions.get(arg);
                 if (!optionKey) {
                     console.error(`Unknown option: ${arg}`);
+                    this.shouldDisplayHelp = true;
                     return null;
                 }
 
@@ -204,33 +216,31 @@ export class Zli {
                     i++;
                 } else {
                     if (!value) {
-                        value = args[i + 1];
-                        if (value === undefined || value.startsWith('-')) {
+                        if (i + 1 >= args.length || args[i + 1].startsWith('-')) {
                             console.error(`Option ${arg} requires a value`);
+                            this.shouldDisplayHelp = true;
                             return null;
                         }
+                        value = args[i + 1];
                         processedIndices.add(i + 1);
+                        i += 2;
+                    } else {
                         i++;
                     }
                     parsedArgs[optionKey] = this.parseValue(value, fieldType);
-                    i++;
                 }
             } else {
-                processedIndices.add(i);
-                i++;
+                // Unrecognized argument
+                console.error(`Unknown argument: ${arg}`);
+                this.shouldDisplayHelp = true;
+                return null;
             }
-        }
-
-        // After parsing options, check for unprocessed arguments
-        const unprocessedArgs = args.filter((_, index) => !processedIndices.has(index));
-        if (unprocessedArgs.length > 0) {
-            console.error(`Unknown argument: ${unprocessedArgs[0]}`);
-            return null;
         }
 
         const validationResult = schema.safeParse(parsedArgs);
         if (!validationResult.success) {
             this.displayValidationErrors(validationResult.error);
+            this.shouldDisplayHelp = true;
             return null;
         }
 
@@ -243,8 +253,8 @@ export class Zli {
      * @returns The unwrapped ZodObject schema.
      */
     private unwrapSchema<T extends z.ZodTypeAny>(schema: T): z.ZodObject<any> {
-        if (schema instanceof z.ZodEffects && schema._def.schema instanceof z.ZodObject) {
-            return schema._def.schema;
+        if (schema instanceof z.ZodEffects) {
+            return this.unwrapSchema(schema._def.schema);
         } else if (schema instanceof z.ZodObject) {
             return schema;
         } else {
@@ -269,7 +279,7 @@ export class Zli {
             type instanceof ZodBoolean ||
             (type instanceof z.ZodOptional && type._def.innerType instanceof ZodBoolean)
         ) {
-            return value === "true" || value === "false" ? value === "true" : value;
+            return value === 'true' || value === 'false' ? value === 'true' : value;
         }
         return value;
     }
@@ -279,24 +289,26 @@ export class Zli {
      * @param error - The ZodError containing validation issues.
      */
     private displayValidationErrors(error: z.ZodError): void {
-        console.error("Argument validation failed:");
+        let errorMessage = 'Argument validation failed:\n';
         error.issues.forEach(issue => {
-            const path = issue.path.join(" -> ") || "Input";
-            console.error(`  - ${path}: ${issue.message}`);
+            const path = issue.path.join(' -> ') || 'Input';
+            errorMessage += `  - ${path}: ${issue.message}\n`;
         });
+        console.error(errorMessage.trim());
     }
 
     /**
      * Display help for all available commands.
      */
     private displayHelp(): void {
-        console.log("Available commands:");
+        let helpMessage = 'Available commands:\n';
         for (const [commandName, { aliases, schema }] of Object.entries(this.commands)) {
-            const description = schema.getDescription() || "No description available";
-            const aliasText = aliases.length > 0 ? ` (${aliases.join(", ")})` : '';
-            console.log(`  ${commandName}${aliasText}: ${description}`);
+            const description = schema.getDescription() || 'No description available';
+            const aliasText = aliases.length > 0 ? ` (${aliases.join(', ')})` : '';
+            helpMessage += `  ${commandName}${aliasText}: ${description}\n`;
         }
-        console.log("\nUse --help with a command for more details.");
+        helpMessage += '\nUse --help with a command for more details.';
+        console.log(helpMessage);
     }
 
     /**
@@ -306,22 +318,22 @@ export class Zli {
      */
     private displayHelpForCommand(commandName: string, schema: z.ZodTypeAny): void {
         const unwrappedSchema = this.unwrapSchema(schema);
-        const description = unwrappedSchema.getDescription() || "No description available";
-        console.log(`\nUsage: ${commandName} [options]\n`);
-        console.log(`${description}\nOptions:`);
+        const description = unwrappedSchema.getDescription() || 'No description available';
+        let helpMessage = `\nUsage: ${commandName} [options]\n\n`;
+        helpMessage += `${description}\n\nOptions:\n`;
 
         const schemaShape = unwrappedSchema.shape;
 
         for (const key in schemaShape) {
             const type = schemaShape[key];
-            const optionDesc = type.getDescription() || "No description available";
+            const optionDesc = type.getDescription() || 'No description available';
             const aliases = type.getAliases();
-            const aliasText = aliases.length > 0 ? ` (${aliases.join(", ")})` : "";
-            const isOptional = type.isOptional() ? "(optional)" : "(required)";
-            console.log(`  --${key}${aliasText} ${isOptional}: ${optionDesc}`);
+            const aliasText = aliases.length > 0 ? ` (${aliases.join(', ')})` : '';
+            const isOptional = type.isOptional() ? '(optional)' : '(required)';
+            helpMessage += `  --${key}${aliasText} ${isOptional}: ${optionDesc}\n`;
         }
 
-        console.log("\nExamples:");
-        // Add examples here if needed
+        helpMessage += '\nExamples:';
+        console.log(helpMessage);
     }
 }
