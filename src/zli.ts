@@ -150,9 +150,9 @@ export class Zli {
                     (fieldType instanceof z.ZodOptional && fieldType._def.innerType instanceof ZodBoolean)
                 ) {
                     parsedArgs[optionKey] = value === 'true';
+                    i++; // Move to the next argument
                 } else if (fieldType instanceof z.ZodArray) {
-                    // Mark the index of the array option as processed
-                    processedIndices.add(i - 1); // Option index
+                    i++; // Move past the option name
                     const values = [];
                     while (i < args.length && !args[i].startsWith('-')) {
                         values.push(args[i]);
@@ -162,6 +162,7 @@ export class Zli {
                     parsedArgs[optionKey] = values;
                 } else {
                     parsedArgs[optionKey] = this.parseValue(value!, fieldType);
+                    i = result.newIndex;
                 }
             } else if (arg.startsWith('-') && arg.length > 2 && !arg.startsWith('--')) {
                 // Handle combined short flags
@@ -226,8 +227,10 @@ export class Zli {
                     (fieldType instanceof z.ZodOptional && fieldType._def.innerType instanceof ZodBoolean)
                 ) {
                     parsedArgs[optionKey] = value === 'true';
+                    i++; // Move to the next argument
                 } else {
                     parsedArgs[optionKey] = this.parseValue(value!, fieldType);
+                    i = result.newIndex;
                 }
             } else {
                 // Unrecognized argument
@@ -283,7 +286,10 @@ export class Zli {
             (fieldType instanceof z.ZodOptional && fieldType._def.innerType instanceof ZodBoolean)
         ) {
             value = value ? value : 'true';
-            return { optionKey, fieldType, value, newIndex: i + 1, success: true };
+            return { optionKey, fieldType, value, newIndex: i, success: true };
+        } else if (fieldType instanceof z.ZodArray) {
+            // For array options, we let parseArgs handle the values
+            return { optionKey, fieldType, newIndex: i, success: true };
         } else if (!value) {
             if (i + 1 >= args.length || args[i + 1].startsWith('-')) {
                 console.error(`Option ${arg} requires a value`);
