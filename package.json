@@ -11,7 +11,7 @@
     "typescript": "^5.0.0"
   },
   "bin": {
-    "zli": "src/index.ts"
+    "zli": "src/sample.ts"
   },
   "dependencies": {
     "effect": "^3.7.3",

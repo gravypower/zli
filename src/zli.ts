@@ -10,6 +10,19 @@ interface CommandDefinition<T extends z.ZodTypeAny> {
     aliases: string[];
 }
 
+type ParseOptionResult =
+    | {
+    optionKey: string;
+    fieldType: ZodTypeAny;
+    value?: string;
+    newIndex: number;
+    success: true;
+}
+    | {
+    newIndex: number;
+    success: false;
+};
+
 // The Zli class implements a fluent API to add commands and parse the CLI
 export class Zli {
     private commands: Record<string, CommandDefinition<z.ZodTypeAny>> = {};
@@ -105,6 +118,7 @@ export class Zli {
             const field = schemaShape[key];
             const aliases = field.getAliases();
             recognizedOptions.set(`--${key}`, key);
+            recognizedOptions.set(`-${key}`, key); // Add short option with single dash
             for (const alias of aliases) {
                 recognizedOptions.set(alias, key);
             }
@@ -114,30 +128,32 @@ export class Zli {
         while (i < args.length) {
             let arg = args[i];
             if (arg.startsWith('--')) {
-                let value: string | undefined;
-                if (arg.includes('=')) {
-                    [arg, value] = arg.split('=');
-                }
-                const optionKey = recognizedOptions.get(arg);
-                if (!optionKey) {
-                    console.error(`Unknown option: ${arg}`);
-                    this.shouldDisplayHelp = true;
+                // Handle long options
+                const result = this.parseOption(
+                    arg,
+                    args,
+                    i,
+                    recognizedOptions,
+                    schemaShape,
+                    processedIndices
+                );
+
+                if (!result.success) {
                     return null;
                 }
 
-                processedIndices.add(i);
-
-                const fieldType = schemaShape[optionKey];
+                i = result.newIndex;
+                const { optionKey, fieldType, value } = result;
 
                 if (
                     fieldType instanceof ZodBoolean ||
                     (fieldType instanceof z.ZodOptional && fieldType._def.innerType instanceof ZodBoolean)
                 ) {
-                    parsedArgs[optionKey] = value ? value === 'true' : true;
-                    i++;
+                    parsedArgs[optionKey] = value === 'true';
                 } else if (fieldType instanceof z.ZodArray) {
+                    // Mark the index of the array option as processed
+                    processedIndices.add(i - 1); // Option index
                     const values = [];
-                    i++;
                     while (i < args.length && !args[i].startsWith('-')) {
                         values.push(args[i]);
                         processedIndices.add(i);
@@ -145,35 +161,30 @@ export class Zli {
                     }
                     parsedArgs[optionKey] = values;
                 } else {
-                    if (!value) {
-                        if (i + 1 >= args.length || args[i + 1].startsWith('-')) {
-                            console.error(`Option ${arg} requires a value`);
-                            this.shouldDisplayHelp = true;
-                            return null;
-                        }
-                        value = args[i + 1];
-                        processedIndices.add(i + 1);
-                        i += 2;
-                    } else {
-                        i++;
-                    }
-                    parsedArgs[optionKey] = this.parseValue(value, fieldType);
+                    parsedArgs[optionKey] = this.parseValue(value!, fieldType);
                 }
-            } else if (arg.startsWith('-') && arg.length > 2) {
+            } else if (arg.startsWith('-') && arg.length > 2 && !arg.startsWith('--')) {
                 // Handle combined short flags
                 const flags = arg.slice(1).split('');
                 processedIndices.add(i);
-                i++;
+                i++; // Move to the next argument
+
                 for (const flag of flags) {
                     const flagArg = `-${flag}`;
-                    const optionKey = recognizedOptions.get(flagArg);
-                    if (!optionKey) {
-                        console.error(`Unknown option: ${flagArg}`);
-                        this.shouldDisplayHelp = true;
+                    const result = this.parseOption(
+                        flagArg,
+                        args,
+                        i - 1,
+                        recognizedOptions,
+                        schemaShape,
+                        processedIndices
+                    );
+
+                    if (!result.success) {
                         return null;
                     }
 
-                    const fieldType = schemaShape[optionKey];
+                    const { optionKey, fieldType, value } = result;
 
                     if (
                         fieldType instanceof ZodBoolean ||
@@ -186,48 +197,37 @@ export class Zli {
                             this.shouldDisplayHelp = true;
                             return null;
                         }
-                        const value = args[i];
+                        const val = args[i];
                         processedIndices.add(i);
                         i++;
-                        parsedArgs[optionKey] = this.parseValue(value, fieldType);
+                        parsedArgs[optionKey] = this.parseValue(val, fieldType);
                     }
                 }
             } else if (arg.startsWith('-')) {
-                let value: string | undefined;
-                if (arg.includes('=')) {
-                    [arg, value] = arg.split('=');
-                }
-                const optionKey = recognizedOptions.get(arg);
-                if (!optionKey) {
-                    console.error(`Unknown option: ${arg}`);
-                    this.shouldDisplayHelp = true;
+                // Handle single-character short options
+                const result = this.parseOption(
+                    arg,
+                    args,
+                    i,
+                    recognizedOptions,
+                    schemaShape,
+                    processedIndices
+                );
+
+                if (!result.success) {
                     return null;
                 }
 
-                processedIndices.add(i);
-
-                const fieldType = schemaShape[optionKey];
+                i = result.newIndex;
+                const { optionKey, fieldType, value } = result;
 
                 if (
                     fieldType instanceof ZodBoolean ||
                     (fieldType instanceof z.ZodOptional && fieldType._def.innerType instanceof ZodBoolean)
                 ) {
-                    parsedArgs[optionKey] = value ? value === 'true' : true;
-                    i++;
+                    parsedArgs[optionKey] = value === 'true';
                 } else {
-                    if (!value) {
-                        if (i + 1 >= args.length || args[i + 1].startsWith('-')) {
-                            console.error(`Option ${arg} requires a value`);
-                            this.shouldDisplayHelp = true;
-                            return null;
-                        }
-                        value = args[i + 1];
-                        processedIndices.add(i + 1);
-                        i += 2;
-                    } else {
-                        i++;
-                    }
-                    parsedArgs[optionKey] = this.parseValue(value, fieldType);
+                    parsedArgs[optionKey] = this.parseValue(value!, fieldType);
                 }
             } else {
                 // Unrecognized argument
@@ -245,6 +245,57 @@ export class Zli {
         }
 
         return validationResult.data;
+    }
+
+    /**
+     * Helper method to parse individual options.
+     */
+    private parseOption(
+        arg: string,
+        args: string[],
+        i: number,
+        recognizedOptions: Map<string, string>,
+        schemaShape: Record<string, ZodTypeAny>,
+        processedIndices: Set<number>
+    ): ParseOptionResult {
+        let value: string | undefined;
+        if (arg.includes('=')) {
+            [arg, value] = arg.split('=');
+        }
+        const optionKey = recognizedOptions.get(arg);
+        if (!optionKey) {
+            console.error(`Unknown option: ${arg}`);
+            this.shouldDisplayHelp = true;
+            return { newIndex: i, success: false };
+        }
+
+        processedIndices.add(i);
+
+        const fieldType = schemaShape[optionKey];
+        if (!fieldType) {
+            console.error(`Unknown option: ${arg}`);
+            this.shouldDisplayHelp = true;
+            return { newIndex: i, success: false };
+        }
+
+        if (
+            fieldType instanceof ZodBoolean ||
+            (fieldType instanceof z.ZodOptional && fieldType._def.innerType instanceof ZodBoolean)
+        ) {
+            value = value ? value : 'true';
+            return { optionKey, fieldType, value, newIndex: i + 1, success: true };
+        } else if (!value) {
+            if (i + 1 >= args.length || args[i + 1].startsWith('-')) {
+                console.error(`Option ${arg} requires a value`);
+                this.shouldDisplayHelp = true;
+                return { newIndex: i, success: false };
+            }
+            value = args[i + 1];
+            processedIndices.add(i + 1);
+            return { optionKey, fieldType, value, newIndex: i + 2, success: true };
+        } else {
+            return { optionKey, fieldType, value, newIndex: i + 1, success: true };
+        }
     }
 
     /**
