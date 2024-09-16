@@ -11,11 +11,15 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "bun test"
+    "test": "bun test",
+    "link": "bun link @gravypower/zli"
   },
   "keywords": ["cli", "zod", "typescript"],
   "author": "Aaron Job",
   "license": "MIT",
+  "bin": {
+    "zli": "./sample.ts"
+  },
   "devDependencies": {
     "@types/bun": "latest",
     "@types/sinon": "^17.0.3",
