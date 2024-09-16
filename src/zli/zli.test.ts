@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import sinon from 'sinon';
 import { Zli } from './index.ts';
 import { z } from 'zod';
-import './zod/zod-extensions.ts'; // Ensure extensions are loaded
+import '../zod/index'; // Ensure extensions are loaded
 
 describe('Zli Class', () => {
     let zli: Zli;
