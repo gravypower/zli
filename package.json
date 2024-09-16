@@ -1,15 +1,16 @@
 {
   "name": "@gravypower/zli",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "A CLI tool built with Bun and TypeScript",
-  "main": "./dist/zli.js",
-  "types": "./dist/zli.d.ts",
-  "exports": {
-    ".": "./dist/zli.js"
-  },
   "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    "./zod": "./dist/zod/index.d.ts",
+    ".": "./dist/zli/index.d.ts"
+  },
   "scripts": {
-    "build": "bun build src/zli.ts --outdir dist && tsc --project tsconfig.json",
+    "build": "tsc",
     "test": "bun test"
   },
   "keywords": ["cli", "zod", "typescript"],
@@ -23,16 +24,10 @@
   "peerDependencies": {
     "typescript": "^5.6.2"
   },
-  "bin": {
-    "zli": "src/sample.ts"
-  },
   "dependencies": {
     "effect": "^3.7.3",
     "zod": "^3.23.8"
   },
-  "files": [
-    "dist/**/*"
-  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/gravypower/zli.git"

@@ -1,11 +1,12 @@
-// zod-extensions.ts
-import { z, type ZodTypeDef, type ZodTypeAny } from 'zod';
+// index.ts
+export * from 'zod';
+
+import { z, type ZodTypeDef } from 'zod';
 
 // Extend Zod to include aliases and methods to access them
 declare module 'zod' {
     interface ZodTypeDef {
         aliases?: string[];
-        description?: string;
     }
 
     interface ZodType<Output = any, Def extends ZodTypeDef = ZodTypeDef, Input = Output> {

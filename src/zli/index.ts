@@ -1,10 +1,8 @@
-// src/zli.ts
-
+// src/zli/index.ts
 import { z, type ZodTypeAny, ZodBoolean, ZodNumber } from 'zod';
-import './zod-extensions'; // Ensure extensions are loaded
 
 // CommandDefinition now uses generics for type safety
-export interface CommandDefinition<T extends z.ZodTypeAny> {
+interface CommandDefinition<T extends z.ZodTypeAny> {
     schema: T;
     handler: (args: z.infer<T>) => void;
     aliases: string[];

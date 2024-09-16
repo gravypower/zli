@@ -1,9 +1,9 @@
-// zli.test.ts
+// src/zli/zli.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import sinon from 'sinon';
-import { Zli } from './zli';
+import { Zli } from './index.ts';
 import { z } from 'zod';
-import './zod-extensions'; // Ensure extensions are loaded
+import './zod/zod-extensions.ts'; // Ensure extensions are loaded
 
 describe('Zli Class', () => {
     let zli: Zli;
