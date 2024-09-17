@@ -1,6 +1,6 @@
 // index.ts
 import { z, type ZodTypeAny, ZodBoolean, ZodNumber } from 'zod';
-
+import "./zodExtensions"
 // CommandDefinition now uses generics for type safety
 interface CommandDefinition<T extends z.ZodTypeAny> {
     schema: T;
@@ -21,7 +21,7 @@ type ParseOptionResult =
 };
 
 // The Zli class implements a fluent API to add commands and parse the CLI
-class Zli {
+export default class Zli {
     private commands: Record<string, CommandDefinition<z.ZodTypeAny>> = {};
 
     /**
@@ -370,6 +370,5 @@ class Zli {
     }
 }
 
-
-export { Zli };
-export * from './zod';
+export * from './zodExtensions';
+export * from 'zod';
