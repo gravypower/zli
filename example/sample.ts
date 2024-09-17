@@ -1,7 +1,7 @@
 #! /usr/bin/env bun
-import {z, Zli} from "./src";
 
-// Subcommand schemas with descriptions
+import {z, Zli} from "../src";
+
 const AddSchema = z.object({
     name: z.string().describe("The name of the user").aliases("n"),
     age: z.number().min(0, "Age must be a non-negative number").describe("The age of the user (must be a number)").aliases("a"),

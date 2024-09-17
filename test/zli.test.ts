@@ -1,9 +1,9 @@
 // src/zli/zli.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import sinon from 'sinon';
-import { Zli } from './index.ts';
 import { z } from 'zod';
-import '../zod/index'; // Ensure extensions are loaded
+import '../src/zod';
+import {Zli} from "../src"; // Ensure extensions are loaded
 
 describe('Zli Class', () => {
     let zli: Zli;
@@ -62,7 +62,7 @@ describe('Zli Class', () => {
     it('should handle command aliases', () => {
         const handlerMock = sinon.spy();
         const schema = z.object({});
-        zli.addCommand('test', schema, handlerMock, 't', 'alias');
+        zli.addCommand('test', schema, handlerMock);
         zli.parse(['t']);
         expect(handlerMock.called).toBe(true);
         handlerMock.resetHistory();
