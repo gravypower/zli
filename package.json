@@ -1,13 +1,19 @@
 {
   "name": "@gravypower/zli",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "description": "A CLI tool built with Bun and TypeScript",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
+    ".": {
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    },
     "./zli": {
       "require": {
-        "types": "./dist/zli/index.d.ts",
+        "types": "./dist/zi/index.d.ts",
         "default": "./dist/zli/index.js"
       }
     },
