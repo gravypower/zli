@@ -1,6 +1,6 @@
 {
   "name": "@gravypower/zli",
-  "version": "0.0.15",
+  "version": "0.0.16",
   "description": "A CLI tool built with Bun and TypeScript",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
